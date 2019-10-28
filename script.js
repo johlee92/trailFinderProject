@@ -11,53 +11,8 @@ function formListener() {
         
         //this section needs to be updated to be more dynamic
         getGooglePlaceID(enteredAddress);
+        // hikingResultsDisplaySequence(enteredAddress);
     });
-}
-
-function formatQueryParams(params) {
-    const queryItems = Object.keys(params)
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-    return queryItems.join('&');
-}
-
-//returns hikes based on the lat and lon inputs
-function getHikes(latVal = 39.75, lonVal = -105.00, maxMilesAway = 100){
-    console.log('start get hikes function');
-    const searchUrl = 'https://www.hikingproject.com/data/get-trails'
-
-    //other params to consider for HikingAPI are maxResults (currently default at 10), sort (default of quality), etc.
-    const params = {
-        lat: latVal,
-        lon: lonVal,
-        maxDistance: maxMilesAway,
-        key: hikeApiKey
-    };
-    console.log(params);
-
-    const queryString = formatQueryParams(params)
-    const url = searchUrl + '?' + queryString;
-    console.log(url);
-
-    fetch(url)
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error(response.statusText);
-        })
-        .then(responseJson => {
-            console.log(responseJson);
-            resultsModification(responseJson);
-        })
-        .catch(err => {
-            $('#js-error-message').text(`Something went wrong: ${err.message}`);
-    });
-}
-
-function resultsModification(hikingRawResults) {
-    console.log('start result modifiction function');
-    let hikingObj = hikingRawResults.trails.slice();
-    displayResults(hikingObj);
 }
 
 //returns the object with predictions of results from google place ID search
@@ -66,7 +21,7 @@ function getGooglePlaceID(userInput) {
     //potential firewall situation with using a work laptop. Still need to determine the why
     const proxyurl = "https://cors-anywhere.herokuapp.com/"
     const searchUrl = 'https://maps.googleapis.com/maps/api/place/autocomplete/json'
-
+    
     const params = {
         input: userInput,
         key: googleApiKey
@@ -78,7 +33,7 @@ function getGooglePlaceID(userInput) {
     // console.log(proxyurl + url);
 
     fetch(proxyurl + url)
-        .then(response => {
+    .then(response => {
             if (response.ok) {
                 console.log('response ok')
                 return response.json();
@@ -112,10 +67,10 @@ function getLatlng(placeIdInput) {
     const queryString = formatQueryParams(params)
     const url = searchUrl + '?' + queryString;
     // console.log(proxyurl + url);
-
+    
     fetch(proxyurl + url)
-        .then(response => {
-            if (response.ok) {
+    .then(response => {
+        if (response.ok) {
                 return response.json();
             }
             throw new Error(response.statusText);
@@ -131,7 +86,61 @@ function getLatlng(placeIdInput) {
         .catch(err => {
             $('#js-error-message').text(`Something went wrong: ${err.message}`);
     });
+    
+}
 
+//returns hikes based on the lat and lon inputs
+function getHikes(latVal = 39.75, lonVal = -105.00, maxMilesAway = 100){
+    console.log('start get hikes function');
+    const searchUrl = 'https://www.hikingproject.com/data/get-trails'
+
+    //other params to consider for HikingAPI are maxResults (currently default at 10), sort (default of quality), etc.
+    const params = {
+        lat: latVal,
+        lon: lonVal,
+        maxDistance: maxMilesAway,
+        key: hikeApiKey
+    };    
+    console.log(params);
+    
+    const queryString = formatQueryParams(params)
+    const url = searchUrl + '?' + queryString;
+    console.log(url);
+
+    fetch(url)
+    .then(response => {
+            if (response.ok) {
+                return response.json();
+            }    
+            throw new Error(response.statusText);
+        })    
+        .then(responseJson => {
+            console.log(responseJson);
+            resultsModification(responseJson);
+        })    
+        .catch(err => {
+            $('#js-error-message').text(`Something went wrong: ${err.message}`);
+    });        
+}    
+
+function resultsModification(hikingRawResults) {
+    console.log('start result modifiction function');
+    let hikingObj = hikingRawResults.trails.slice();
+
+    for(let i = 0; i < hikingObj.length; i++){
+        let timeHrs = estTimeCommit(hikingObj[i].length, hikingObj[i].ascent);
+        hikingObj[i].timeCommit = timeHrs;
+        console.log(timeHrs);
+    }
+    
+    displayResults(hikingObj);
+}
+
+function estTimeCommit(rtTime, elevation) {
+    let totalMinutes = (rtTime * 30) + (Math.ceil(elevation/1000) * 30)
+    let hours = Math.floor(totalMinutes / 60);          
+    let minutes = totalMinutes % 60;
+    return `${hours} hrs ${minutes} mins`;
 }
 
 function displayResults(responseObj) {
@@ -150,19 +159,37 @@ function displayResults(responseObj) {
                 <section class="project-card-description">
                     <h3>${responseObj[i].name}</h3>
                     <h4>${responseObj[i].location}</h4>
-                    <p>Est. Time Commitment: </p>
-                    <section class="project-card-buttons">
-                        <a href="${responseObj[i].url}" target="_blank"><button type="button" class="view-hike">View Hike</button></a>
-                    </section>
+                    <p>Est. Time Commitment: ${responseObj[i].timeCommit}</p>
+                </section>
+                <section class="project-card-buttons">
+                    <a href="${responseObj[i].url}" target="_blank"><button type="button" class="view-hike">View Hike</button></a>
                 </section>
             </div>`
         );
     };
 }
-
+                
 function handlePage() {
     console.log('start handle page function');
     formListener();
 }
 
+function formatQueryParams(params) {
+    const queryItems = Object.keys(params)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    return queryItems.join('&');
+}
+
 $(handlePage);
+
+// function hikingResultsDisplaySequence(userInput){
+    //     getGooglePlaceID(userInput).then(response => {
+        //         getLatlng(response);  
+        //     }).then(response=> {
+            //         getHikes(response[0],response[1]);
+            //     }).then(response=> {
+                //         resultsModification(response);
+                //     }).then(response=> {
+                    //         displayResults(response);
+                    //     })
+                    // }
